@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug simple-c-01 (native macOS)",
+      "type": "codelldb",
+      "request": "launch",
+      "program": "${workspaceFolder}/build/debug/simple_c_01",
+      "cwd": "${workspaceFolder}",
+      "stopOnEntry": true
+    }
+  ]
+}
