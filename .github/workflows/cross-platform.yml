@@ -1,23 +1,15 @@
 name: Cross-Platform Build Matrix
 
 on:
-  workflow_run:
-    workflows: ["CMake Build & Test"]
-    types:
-      - completed
-    branches: [ "main" ]
+  workflow_call:
 
 jobs:
   matrix-build:
-    # Only run if the primary workflow succeeded
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
           - os: macos-latest
             platform: macos
           - os: windows-latest
@@ -28,40 +20,6 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-
-    # -----------------------------------------------------------
-    # LINUX DEPENDENCIES (Utilizes pre-built cache from Step 1)
-    # -----------------------------------------------------------
-    - name: Linux - Install Dependencies
-      if: matrix.platform == 'linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          ninja-build \
-          libasound2-dev \
-          libpulse-dev \
-          libwayland-dev \
-          libx11-dev \
-          libxcursor-dev \
-          libxext-dev \
-          libxi-dev \
-          libxinerama-dev \
-          libxrandr-dev \
-          libxss-dev \
-          libxt-dev \
-          libxxf86vm-dev \
-          libxtst-dev \
-          libfreetype-dev \
-          libharfbuzz-dev \
-          libpng-dev \
-          libwebp-dev
-
-    - name: Linux - Restore SDL3 Cache
-      if: matrix.platform == 'linux'
-      uses: actions/cache@v4
-      with:
-        path: /opt/sdl3
-        key: Linux-sdl3-dev-v1
 
     # -----------------------------------------------------------
     # MACOS DEPENDENCIES (Homebrew)
@@ -91,15 +49,6 @@ jobs:
     # -----------------------------------------------------------
     # CONFIGURE CMAKE
     # -----------------------------------------------------------
-    - name: Linux - Configure CMake
-      if: matrix.platform == 'linux'
-      run: >
-        cmake -B build
-        -G Ninja
-        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
-        -DCMAKE_PREFIX_PATH=/opt/sdl3
-        -DBUILD_TESTING=ON
-
     - name: macOS - Configure CMake
       if: matrix.platform == 'macos'
       run: >
