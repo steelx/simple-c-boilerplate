@@ -33,7 +33,11 @@ jobs:
           libxss-dev \
           libxt-dev \
           libxxf86vm-dev \
-          libxtst-dev
+          libxtst-dev \
+          libfreetype-dev \
+          libharfbuzz-dev \
+          libpng-dev \
+          libwebp-dev
 
     # Cache prebuilt SDL3 packages to avoid compiling SDL3 on every CI run
     - name: Cache SDL3
@@ -53,7 +57,8 @@ jobs:
         cmake -S SDL -B build_sdl -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
-          -DSDL_TEST=OFF
+          -DSDL_TESTS=OFF \
+          -DSDL_EXAMPLES=OFF
         cmake --build build_sdl --parallel
         sudo cmake --install build_sdl
 
@@ -62,7 +67,9 @@ jobs:
         cmake -S SDL_image -B build_img -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
-          -DCMAKE_PREFIX_PATH=/opt/sdl3
+          -DCMAKE_PREFIX_PATH=/opt/sdl3 \
+          -DSDLIMAGE_SAMPLES=OFF \
+          -DSDLIMAGE_TESTS=OFF
         cmake --build build_img --parallel
         sudo cmake --install build_img
 
@@ -71,7 +78,8 @@ jobs:
         cmake -S SDL_ttf -B build_ttf -G Ninja \
           -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
-          -DCMAKE_PREFIX_PATH=/opt/sdl3
+          -DCMAKE_PREFIX_PATH=/opt/sdl3 \
+          -DSDLTTF_SAMPLES=OFF
         cmake --build build_ttf --parallel
         sudo cmake --install build_ttf
 
