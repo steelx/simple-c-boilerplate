@@ -32,7 +32,8 @@ jobs:
           libxrandr-dev \
           libxss-dev \
           libxt-dev \
-          libxxf86vm-dev
+          libxxf86vm-dev \
+          libxtst-dev
 
     # Cache prebuilt SDL3 packages to avoid compiling SDL3 on every CI run
     - name: Cache SDL3
