@@ -1,0 +1,129 @@
+name: Cross-Platform Build Matrix
+
+on:
+  workflow_run:
+    workflows: ["CMake Build & Test"]
+    types:
+      - completed
+    branches: [ "main" ]
+
+jobs:
+  matrix-build:
+    # Only run if the primary workflow succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: macos-latest
+            platform: macos
+          - os: windows-latest
+            platform: windows
+
+    env:
+      BUILD_TYPE: Release
+
+    steps:
+    - uses: actions/checkout@v4
+
+    # -----------------------------------------------------------
+    # LINUX DEPENDENCIES (Utilizes pre-built cache from Step 1)
+    # -----------------------------------------------------------
+    - name: Linux - Install Dependencies
+      if: matrix.platform == 'linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          libasound2-dev \
+          libpulse-dev \
+          libwayland-dev \
+          libx11-dev \
+          libxcursor-dev \
+          libxext-dev \
+          libxi-dev \
+          libxinerama-dev \
+          libxrandr-dev \
+          libxss-dev \
+          libxt-dev \
+          libxxf86vm-dev \
+          libxtst-dev \
+          libfreetype-dev \
+          libharfbuzz-dev \
+          libpng-dev \
+          libwebp-dev
+
+    - name: Linux - Restore SDL3 Cache
+      if: matrix.platform == 'linux'
+      uses: actions/cache@v4
+      with:
+        path: /opt/sdl3
+        key: Linux-sdl3-dev-v1
+
+    # -----------------------------------------------------------
+    # MACOS DEPENDENCIES (Homebrew)
+    # -----------------------------------------------------------
+    - name: macOS - Install Dependencies
+      if: matrix.platform == 'macos'
+      run: |
+        brew install ninja sdl3 sdl3_image sdl3_ttf
+
+    # -----------------------------------------------------------
+    # WINDOWS DEPENDENCIES (vcpkg with actions cache)
+    # -----------------------------------------------------------
+    - name: Windows - Setup vcpkg Cache
+      if: matrix.platform == 'windows'
+      uses: actions/cache@v4
+      with:
+        path: |
+          C:/vcpkg/installed
+          C:/Users/runneradmin/AppData/Local/vcpkg/archives
+        key: ${{ runner.os }}-vcpkg-sdl3-v1
+
+    - name: Windows - Install SDL3 Ports
+      if: matrix.platform == 'windows'
+      run: |
+        vcpkg install sdl3:x64-windows sdl3-image:x64-windows sdl3-ttf:x64-windows
+
+    # -----------------------------------------------------------
+    # CONFIGURE CMAKE
+    # -----------------------------------------------------------
+    - name: Linux - Configure CMake
+      if: matrix.platform == 'linux'
+      run: >
+        cmake -B build
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        -DCMAKE_PREFIX_PATH=/opt/sdl3
+        -DBUILD_TESTING=ON
+
+    - name: macOS - Configure CMake
+      if: matrix.platform == 'macos'
+      run: >
+        cmake -B build
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+        -DBUILD_TESTING=ON
+
+    - name: Windows - Configure CMake
+      if: matrix.platform == 'windows'
+      run: >
+        cmake -B build
+        -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+        -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake
+        -DVCPKG_TARGET_TRIPLET=x64-windows
+        -DBUILD_TESTING=ON
+
+    # -----------------------------------------------------------
+    # BUILD & TEST
+    # -----------------------------------------------------------
+    - name: Build Project
+      run: cmake --build build --config ${{ env.BUILD_TYPE }} --parallel
+
+    - name: Run Tests
+      working-directory: build
+      run: ctest -C ${{ env.BUILD_TYPE }} --output-on-failure
