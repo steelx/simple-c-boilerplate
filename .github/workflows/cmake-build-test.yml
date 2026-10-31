@@ -1,0 +1,90 @@
+name: CMake Build & Test
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install System Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          ninja-build \
+          libasound2-dev \
+          libpulse-dev \
+          libwayland-dev \
+          libx11-dev \
+          libxcursor-dev \
+          libxext-dev \
+          libxi-dev \
+          libxinerama-dev \
+          libxrandr-dev \
+          libxss-dev \
+          libxt-dev \
+          libxxf86vm-dev
+
+    # Cache prebuilt SDL3 packages to avoid compiling SDL3 on every CI run
+    - name: Cache SDL3
+      id: cache-sdl3
+      uses: actions/cache@v4
+      with:
+        path: /opt/sdl3
+        key: ${{ runner.os }}-sdl3-dev-v1
+
+    - name: Build and Install SDL3, SDL3_image, SDL3_ttf
+      if: steps.cache-sdl3.outputs.cache-hit != 'true'
+      run: |
+        mkdir -p sdl_deps && cd sdl_deps
+        
+        # SDL3 Core
+        git clone --depth 1 https://github.com/libsdl-org/SDL.git -b main
+        cmake -S SDL -B build_sdl -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
+          -DSDL_TEST=OFF
+        cmake --build build_sdl --parallel
+        sudo cmake --install build_sdl
+
+        # SDL3_image
+        git clone --depth 1 https://github.com/libsdl-org/SDL_image.git -b main
+        cmake -S SDL_image -B build_img -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
+          -DCMAKE_PREFIX_PATH=/opt/sdl3
+        cmake --build build_img --parallel
+        sudo cmake --install build_img
+
+        # SDL3_ttf
+        git clone --depth 1 https://github.com/libsdl-org/SDL_ttf.git -b main
+        cmake -S SDL_ttf -B build_ttf -G Ninja \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=/opt/sdl3 \
+          -DCMAKE_PREFIX_PATH=/opt/sdl3
+        cmake --build build_ttf --parallel
+        sudo cmake --install build_ttf
+
+    - name: Configure CMake
+      run: >
+        cmake -B ${{github.workspace}}/build
+        -G Ninja
+        -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+        -DCMAKE_PREFIX_PATH=/opt/sdl3
+        -DBUILD_TESTING=ON
+
+    - name: Build Project
+      run: cmake --build ${{github.workspace}}/build --parallel
+
+    - name: Run Tests
+      working-directory: ${{github.workspace}}/build
+      run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
