@@ -6,10 +6,17 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# SDL3 package
+# SDL3 packages
 find_package(SDL3 REQUIRED CONFIG)
 find_package(SDL3_image CONFIG REQUIRED)
 find_package(SDL3_ttf CONFIG REQUIRED)
+
+# third_party
+add_library(cjson STATIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cjson/cJSON.c)
+target_include_directories(
+  cjson PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cjson
+)
 
 add_executable(${PROJECT_NAME}
   src/main.c
@@ -24,13 +31,8 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 target_link_libraries(
   ${PROJECT_NAME} PRIVATE
-  SDL3::SDL3 SDL3_image::SDL3_image SDL3_ttf::SDL3_ttf math_utils cjson
+  SDL3::SDL3 SDL3_image::SDL3_image SDL3_ttf::SDL3_ttf cjson
 )
-
-if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-  target_compile_options(math_utils PRIVATE -Wall -Wextra -Wpedantic)
-  target_compile_options(${PROJECT_NAME} PRIVATE -Wall -Wextra -Wpedantic)
-endif()
 
 # global variables
 target_compile_definitions(${PROJECT_NAME} PRIVATE
@@ -38,27 +40,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
   RPG_MAPS="${CMAKE_CURRENT_SOURCE_DIR}/maps"
 )
 
-foreach(target ${PROJECT_NAME})
+if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
   target_compile_options(
-    ${target} PRIVATE
+    ${PROJECT_NAME} PRIVATE
     -Wall -Wextra -Wpedantic -Werror -Wshadow -Wstrict-prototypes
   )
-endforeach()
-
-# tests
-include(CTest)
-if(BUILD_TESTING)
-  add_executable(test_math_utils tests/test_math_utils.c)
-  target_link_libraries(test_math_utils PRIVATE math_utils)
-  if(CMAKE_C_COMPILER_ID MATCHES "AppleClang|Clang|GNU")
-    target_compile_options(test_math_utils PRIVATE -Wall -Wextra -Wpedantic)
-  endif()
-  add_test(NAME math_utils COMMAND test_math_utils)
 endif()
 
-# third_party
-add_library(cjson STATIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cjson/cJSON.c)
-target_include_directories(
-  cjson PUBLIC
-  ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cjson
-)
